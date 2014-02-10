@@ -2,6 +2,13 @@
 import csv
 import numpy as np
 
+
+class Variable:
+    """ A variable is both a name and a cardinality """
+    def __init__(self, name, cardinality):
+        self.name = name
+        self.cardinality = cardinality
+
 class OrdinalBinner:
     """
     Automate the binning of ordinal data into categorical data.  Given
@@ -79,6 +86,7 @@ class Dataset:
                     self.frequency_matrix = np.zeros(tuple(card_list),
                                                      dtype='u4')
 
+                    # Populate frequency matrix.
                     var_pointer = [header.index(val[0]) for val in binners]
                     expected_length = len(header)
                     for l,row in enumerate(reader):
@@ -96,15 +104,36 @@ class Dataset:
                                       i,val in enumerate(cleaned_row)]
                         self.frequency_matrix[tuple(binned_row)] += 1
 
+                        # Generate variable list.
+                        self.variable_list = []
+                        for variable in binners:
+                            name = variable[0]
+                            cardinality = variable[1].get_cardinality()
+                            self.variable_list.append(Variable(name,cardinality))
             except Exception, e:
                 raise e
 
         self.variable_list = None
 
+    def extract_component(self,variable_list):
+        if all(isinstance(variable,int) for variable in variable_list):
+
+        elif all(isinstance(variable,str) for variable in variable_list):
+            # TODO convert to int
+            raise Exception("Section not written")
+        else:
+            raise Exception("invalid variable_list parmeter in \
+                             extract_component.")
+
+        # TODO sum
+    def save_frequency_table(self,filename):
+        raise Exception("save_frequency_table() not yet written")
 
 
-    def save_frequency_table(filename):
-        pass
+
+class Model:
+    def __init__(self,variable_list=None):
+        raise Exception("Model class not yet written")
 
 
 if __name__ == "__main__":
@@ -119,8 +148,15 @@ if __name__ == "__main__":
 
     print ds.frequency_matrix
 
-    ds.save_frequency_table()
+    # ds.save_frequency_table("")
+
+
+    # E0: entropy of a single component
+
+    # E1: entropy of a model with one component.  ==E0?
 
 
     print "\n\n ======== End ============\n"
 
+#  Todo:
+#    - it may be cleaner to make the binner objects a part of Variable.
