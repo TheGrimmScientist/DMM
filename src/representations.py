@@ -104,20 +104,35 @@ class Dataset:
                                       i,val in enumerate(cleaned_row)]
                         self.frequency_matrix[tuple(binned_row)] += 1
 
-                        # Generate variable list.
-                        self.variable_list = []
-                        for variable in binners:
-                            name = variable[0]
-                            cardinality = variable[1].get_cardinality()
-                            self.variable_list.append(Variable(name,cardinality))
+                    # Generate variable list.
+                    self.variable_list = []
+                    for variable in binners:
+                        name = variable[0]
+                        cardinality = variable[1].get_cardinality()
+                        self.variable_list.append(Variable(name,cardinality))
+
             except Exception, e:
                 raise e
 
-        self.variable_list = None
+        self.N = self.frequency_matrix.sum()
+        self.probability_matrix = np.array(self.frequency_matrix,
+                                           dtype='float',) /self.N
+        self.n_variables = len(self.variable_list)
 
     def extract_component(self,variable_list):
-        if all(isinstance(variable,int) for variable in variable_list):
+        """
+        Return a numpy ndarray that is the aggregated version of the original
+        dataset where exactly the variables in variable_list remain.
 
+        *currently only accepts list of ints that are the indices of the 
+        desired variables.
+        """
+        # TODO make buffer that stores a limited number of componets (set 
+        # limit on memory or number of components?) to alleviate redundant
+        # aggregations.
+
+        if all(isinstance(variable,int) for variable in variable_list):
+            pointer_list = variable_list
         elif all(isinstance(variable,str) for variable in variable_list):
             # TODO convert to int
             raise Exception("Section not written")
@@ -125,9 +140,17 @@ class Dataset:
             raise Exception("invalid variable_list parmeter in \
                              extract_component.")
 
-        # TODO sum
+        unwanted_variables = [v for v in range(len(self.variable_list)) 
+                              if not v in pointer_list]
+
+        return np.sum(self.frequency_matrix,axis=tuple(unwanted_variables))
+         # *** new ndarray that is a copy of the original.  self.frequency_matrix.sum  or np.sum(...) ?
+
+
+
     def save_frequency_table(self,filename):
         raise Exception("save_frequency_table() not yet written")
+
 
 
 
@@ -140,15 +163,28 @@ if __name__ == "__main__":
 
     print "\n ======== Begin ============\n\n"
 
-    ds = Dataset(raw_csv="../../SampleDatasets/StackOverflowSample.csv",
+    ds = Dataset(raw_csv="../../SampleDatasets/StackExchange/CrossValidated_AllPosts_140119.csv",
                  binners=[["Score",OrdinalBinner([-1,0,5]) ],
                           ["FavoriteCount",OrdinalBinner([0]) ],
                           ["AnswerCount",OrdinalBinner([0]) ],
                           ["CommentCount",OrdinalBinner([0,3]) ]])
 
+    print "N of dataset:", ds.N
+
+    print "Frequency matrix for full dataset:"
     print ds.frequency_matrix
 
     # ds.save_frequency_table("")
+
+    print ds.probability_matrix
+
+
+    print "Some test cases to check aggregation"
+    l = []
+    print l,ds.extract_component(l)
+    l = [1,0,3]
+    print l,ds.extract_component(l)
+
 
 
     # E0: entropy of a single component
