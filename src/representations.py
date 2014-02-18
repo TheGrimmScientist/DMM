@@ -9,6 +9,8 @@ class Variable:
         self.name = name
         self.cardinality = cardinality
 
+#TODO: Make virtual Binner class to have all other binner classes inherit.
+
 class OrdinalBinner:
     """
     Automate the binning of ordinal data into categorical data.  Given
@@ -51,6 +53,10 @@ class Dataset:
 
         Return True if data successfully read, false if not.
         """
+        #TODO: move data_import into its own function (leaving __init__() to
+        #      only take the variable objects on init and only init an empty
+        #      numpy array.  Add frequncy_matrix_reset function.
+        #TODO: add export_to_occam function.
 
         # reason for how I handle file non-existence or read failure:
         # https://mail.python.org/pipermail/python-ideas/2009-May/004900.html
@@ -143,19 +149,42 @@ class Dataset:
         unwanted_variables = [v for v in range(len(self.variable_list)) 
                               if not v in pointer_list]
 
-        return np.sum(self.frequency_matrix,axis=tuple(unwanted_variables))
-         # *** new ndarray that is a copy of the original.  self.frequency_matrix.sum  or np.sum(...) ?
+        # sum across all the dimensions you don't want.
+        #TODO: isn't there a way to do this in one function call through np?
+        new_probability_matrix = np.array(self.probability_matrix)
+        for d in sorted(unwanted_variables,reverse=True):
+            new_probability_matrix = new_probability_matrix.sum(axis=d)
+
+        return new_probability_matrix
 
 
 
     def save_frequency_table(self,filename):
+        """ save the frequency table as a csv """
         raise Exception("save_frequency_table() not yet written")
 
+    def save_frequency_matrix(self,filename):
+        """ save the frequency matrix as a numpy array """
+        raise Exception("Function not written.")
 
+    def save_as_occam3_format(self,filename):
+        """ save the frequency matrix as a numpy array """
+        raise Exception("Function not written.")
+
+
+#TODO: *** seperate structural and with-data?
+class Component:
+    """  """
+    def __init__(self,):
+        self.entropy = None
+        self.df = None
+    def return_entropy(self):
+        pass
 
 
 class Model:
     def __init__(self,variable_list=None):
+        #if initing from text string, preserve order as much as possible
         raise Exception("Model class not yet written")
 
 
@@ -181,9 +210,9 @@ if __name__ == "__main__":
 
     print "Some test cases to check aggregation"
     l = []
-    print l,ds.extract_component(l)
+    print l,'\n',ds.extract_component(l),'\n'
     l = [1,0,3]
-    print l,ds.extract_component(l)
+    print l,'\n',ds.extract_component(l),'\n'
 
 
 
@@ -196,3 +225,5 @@ if __name__ == "__main__":
 
 #  Todo:
 #    - it may be cleaner to make the binner objects a part of Variable.
+#    - it'd be nice to have some automatic binning functions on the front end.
+
