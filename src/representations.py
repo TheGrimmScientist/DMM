@@ -11,7 +11,7 @@ class Variable:
 
 #TODO: Make virtual Binner class to have all other binner classes inherit.
 
-class OrdinalBinner:
+class OrdinalBinner(object):
     """
     Automate the binning of ordinal data into categorical data.  Given
     a list of the upper limits of each bin on init, give access to varaible's
@@ -31,6 +31,22 @@ class OrdinalBinner:
                 return i
         return i+1
 
+
+class TextLengthBinner(OrdinalBinner):
+    """
+    Used for binning a body of text based on the number of 'words'. bin_val() takes
+    a string and splits it into 'words' before returning the binned value.
+    Not treating any of the mark-up different from regular text at this point.
+    """
+
+    def __init__(self, upper_limits):
+        super(TextLengthBinner, self).__init__(upper_limits)
+
+    def bin_val(self,body):
+        if not isinstance(body,str):
+            raise Exception("TextLengthBinner requires input of type 'str'")
+        value = len(body.split())
+        return super(TextLengthBinner, self).bin_val(value)
 
 
 class Dataset:
@@ -61,6 +77,7 @@ class Dataset:
         # reason for how I handle file non-existence or read failure:
         # https://mail.python.org/pipermail/python-ideas/2009-May/004900.html
 
+            
         try:
             with open(frequency_table_csv,'r') as f:
 
@@ -70,6 +87,22 @@ class Dataset:
 
         except:
             try:
+                def clean_row(extracted_row, field_types):
+                    """
+                    Clean the extracted row, casting to the desired type when
+                    necessary.
+                    """
+                    cleaned_row = []
+                    for field,ftype in zip(extracted_row,field_types):
+                        if isinstance(field,ftype):
+                            cleaned = field
+                        elif field == '':
+                            cleaned = 0
+                        else:
+                            cleaned = ftype(field)
+                        cleaned_row.append(cleaned)
+                    return cleaned_row
+
                 with open(raw_csv,'r') as f:
                     reader = csv.reader(f)
 
@@ -94,6 +127,7 @@ class Dataset:
 
                     # Populate frequency matrix.
                     var_pointer = [header.index(val[0]) for val in binners]
+                    field_types = [val[2] for val in binners]
                     expected_length = len(header)
                     for l,row in enumerate(reader):
                         
@@ -104,8 +138,11 @@ class Dataset:
                                             "length: %d"%len(row),
                                             "line number: %d"%l)
                         extracted_row = [row[i] for i in var_pointer]
-                        cleaned_row = [0 if val == '' else int(val) 
-                                       for val in extracted_row]
+                        # this breaks when we the value is a non-empty string
+                        #cleaned_row = [0 if val == '' else int(val) 
+                        #               for val in extracted_row]
+                        #using this instead
+                        cleaned_row = clean_row(extracted_row, field_types)
                         binned_row = [binners[i][1].bin_val(val) for 
                                       i,val in enumerate(cleaned_row)]
                         self.frequency_matrix[tuple(binned_row)] += 1
@@ -193,10 +230,13 @@ if __name__ == "__main__":
     print "\n ======== Begin ============\n\n"
 
     ds = Dataset(raw_csv="../../SampleDatasets/StackExchange/CrossValidated_AllPosts_140119.csv",
-                 binners=[["Score",OrdinalBinner([-1,0,5]) ],
-                          ["FavoriteCount",OrdinalBinner([0]) ],
-                          ["AnswerCount",OrdinalBinner([0]) ],
-                          ["CommentCount",OrdinalBinner([0,3]) ]])
+                 binners=[["Score",OrdinalBinner([-1,0,5]), int ],
+                          ["FavoriteCount",OrdinalBinner([0]), int ],
+                          ["AnswerCount",OrdinalBinner([0]), int ],
+                          ["CommentCount",OrdinalBinner([0,3]), int ],
+                          ["Body",TextLengthBinner([0,50,100,300]), str ]])
+                          # need to include what type to expect in order to properly clean
+                          
 
     print "N of dataset:", ds.N
 
