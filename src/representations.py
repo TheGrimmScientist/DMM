@@ -1,3 +1,5 @@
+""" Tested and developed on python 2.7 and numpy 1.8"""
+
 
 import csv
 import numpy as np
@@ -69,10 +71,13 @@ class Dataset:
 
         Return True if data successfully read, false if not.
         """
-        #TODO: move data_import into its own function (leaving __init__() to
-        #      only take the variable objects on init and only init an empty
-        #      numpy array.  Add frequncy_matrix_reset function.
-        #TODO: add export_to_occam function.
+
+        #TODO: Split out data import into import_train_data funciton
+        #TODO: Add import_test_data function.
+        #TODO: Data imports are to have associated reset functions.  Multiple
+        # calls to a data import will import and aggregate many files.
+        # Alternatively, is there any use to requrie the train and test sets
+        # be two different Datasets?
 
         # reason for how I handle file non-existence or read failure:
         # https://mail.python.org/pipermail/python-ideas/2009-May/004900.html
@@ -164,8 +169,8 @@ class Dataset:
 
     def extract_component(self,variable_list):
         """
-        Return a numpy ndarray that is the aggregated version of the original
-        dataset where exactly the variables in variable_list remain.
+        Compile subset of Dataset as a frequency matrix (ndarray). Variables
+        that remain are given in variable_list.
 
         *currently only accepts list of ints that are the indices of the 
         desired variables.
@@ -183,16 +188,16 @@ class Dataset:
             raise Exception("invalid variable_list parmeter in \
                              extract_component.")
 
+        #TODO: convert this to Set math.  Proably requries first defining
+        # Component (without data) to pass in set of variables.
         unwanted_variables = [v for v in range(len(self.variable_list)) 
                               if not v in pointer_list]
 
-        # sum across all the dimensions you don't want.
-        #TODO: isn't there a way to do this in one function call through np?
-        new_probability_matrix = np.array(self.probability_matrix)
-        for d in sorted(unwanted_variables,reverse=True):
-            new_probability_matrix = new_probability_matrix.sum(axis=d)
-
-        return new_probability_matrix
+        # Keep dims so math works out more easily later and to track
+        # which variables are aggregated.
+        return np.sum(a=self.probability_matrix,
+                      axis=tuple(unwanted_variables),
+                      keepdims=True)
 
 
 
@@ -204,19 +209,48 @@ class Dataset:
         """ save the frequency matrix as a numpy array """
         raise Exception("Function not written.")
 
-    def save_as_occam3_format(self,filename):
-        """ save the frequency matrix as a numpy array """
-        raise Exception("Function not written.")
+    def save_as_occam3_format(self,filename,):
+        """ 
+        Save the frequency table in an Occam3-readable format.
+        *** for now, system is assumed to be undirected without a test set.
+        """
+
+        writer = open(filename, 'w')
+
+        #write header
+        writer.write(":action\n")
+        writer.write("search\n")
+        writer.write("\n")
+
+        #write variable info.
+        writer.write(":nominal\n")
+        for i,var in enumerate(self.variable_list):
+            var_letter = chr(i+97)  #"chr(i+97)" 0 is a.  1 is b, etc.
+
+            #TODO: change the third entry (1) to 2 for DVs.
+            writer.write("%s, %d, %d, %s \n" % 
+                                  (var.name, var.cardinality, 1, var_letter))
+
+        #write data.
+        # http://docs.scipy.org/doc/numpy/reference/arrays.nditer.html#tracking-an-index-or-multi-index
+        writer.write("\n")
+        writer.write(":data\n")
+        it = np.nditer(self.frequency_matrix, flags=['multi_index'])
+        while not it.finished:
+            writer.write(','.join(map(str,list(it.multi_index) + [it[0]])))
+            writer.write('\n')
+            it.iternext()
 
 
-#TODO: *** seperate structural and with-data?
 class Component:
     """  """
-    def __init__(self,):
+    def __init__(self,extracted_component):
+        # self.
         self.entropy = None
         self.df = None
     def return_entropy(self):
         pass
+
 
 
 class Model:
@@ -240,20 +274,23 @@ if __name__ == "__main__":
 
     print "N of dataset:", ds.N
 
-    print "Frequency matrix for full dataset:"
-    print ds.frequency_matrix
+    # print "Frequency matrix for full dataset:"
+    # print ds.frequency_matrix
 
     # ds.save_frequency_table("")
 
-    print ds.probability_matrix
+    # print ds.probability_matrix
 
 
-    print "Some test cases to check aggregation"
-    l = []
-    print l,'\n',ds.extract_component(l),'\n'
-    l = [1,0,3]
-    print l,'\n',ds.extract_component(l),'\n'
+    # print "Some test cases to check aggregation"
+    # l = []
+    # print l,'\n',ds.extract_component(l),'\n'
+    # l = [1,0,3]
+    # print l,'\n',ds.extract_component(l),'\n'
 
+    occam3_filename = "test_file.oin"
+    print "saving ",occam3_filename,"..."
+    ds.save_as_occam3_format(occam3_filename)
 
 
     # E0: entropy of a single component
