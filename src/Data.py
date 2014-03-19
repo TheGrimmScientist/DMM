@@ -61,8 +61,7 @@ class Dataset:
                 else expect raw_variable_names = <list of varaible names>.
             Parameter binners  
 
-        Use raw_binner_list to store binner.  None means variable is not 
-        preserved in aggregation.  True means variable is not binned.
+        
 
         Return True if data successfully read, false if not.
         """
@@ -81,7 +80,7 @@ class Dataset:
         try:
             with open(frequency_table_csv,'r') as f:
 
-                expected_length = len(variable_names)
+                expected_width = len(variable_names) + 1
                 # TODO; read frequency table
                 raise Exception("Import frequency_table_csv not yet written.")
 
@@ -106,19 +105,12 @@ class Dataset:
                 with open(raw_csv,'r') as f:
                     reader = csv.reader(f)
 
-                    # Compile header
+                    # Compile header into variable name list.
                     if raw_variable_names is None:
-                        header = reader.next()
-                    else:
-                        header = raw_variable_names
-                    
-                    # This is where I'd compile the cardinality lists for
-                    # variables without a binner object if I wanted to allow
-                    # it.  Though I'm making users explitily provide binner
-                    # objects to make the user define what is expected from a 
-                    # dataset.  Otherwise, this method won't be able to handle
-                    # any missing values from the first dataset used to
-                    # initialize the model.
+                        raw_variable_names = reader.next()
+                    # else:
+                    #     raw_variable_names = raw_variable_names
+                    self.variable_names = [val[0] for val in binners]
                     
                     # Initialize frequency matrix
                     card_list = [val[1].get_cardinality() for val in binners]
@@ -126,9 +118,10 @@ class Dataset:
                                                      dtype='u4')
 
                     # Populate frequency matrix.
-                    var_pointer = [header.index(val[0]) for val in binners]
+                    var_pointer = [raw_variable_names.index(var)
+                                  for var in self.variable_names]
                     field_types = [val[2] for val in binners]
-                    expected_length = len(header)
+                    expected_length = len(raw_variable_names)
                     for l,row in enumerate(reader):
                         
                         if not expected_length == len(row):
@@ -147,21 +140,13 @@ class Dataset:
                                       i,val in enumerate(cleaned_row)]
                         self.frequency_matrix[tuple(binned_row)] += 1
 
-                    # I don't think I want to leave this be the responsibility 
-                    # of the Dataset:
-                    # # Generate variable list.
-                    # self.variable_list = []
-                    # for variable in binners:
-                    #     name = variable[0]
-                    #     cardinality = variable[1].get_cardinality()
-                    #     self.variable_list.append(Variable(name,cardinality))
 
             except Exception, e:
                 raise e
 
         self.N = self.frequency_matrix.sum()
         self.probability_matrix = np.array(self.frequency_matrix,
-                                           dtype='float',) /self.N
+                                           dtype=np.float64,) /self.N
         # self.n_variables = len(self.variable_list)
 
     def extract_component(self,variable_list):
@@ -180,14 +165,13 @@ class Dataset:
             pointer_list = variable_list
         elif all(isinstance(variable,str) for variable in variable_list):
             # TODO convert to int
-            raise Exception("Section not written")
+            pointer_list = [self.variable_names.index(var)
+                            for var in variable_list]
         else:
             raise Exception("invalid variable_list parmeter in \
                              extract_component.")
 
-        #TODO: convert this to Set math.  Proably requries first defining
-        # Component (without data) to pass in set of variables.
-        unwanted_variables = [v for v in range(len(self.variable_list)) 
+        unwanted_variables = [v for v in range(len(self.variable_names)) 
                               if not v in pointer_list]
 
         # Keep dims so math works out more easily later and to track
