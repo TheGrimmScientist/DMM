@@ -6,9 +6,21 @@ import numpy as np
 
 
 
-#TODO: Make virtual Binner class to have all other binner classes inherit.
 
-class OrdinalBinner(object):
+#TODO: What should default behavior be?
+#        1: Direct copy of data while compiling a cardinality?
+#        2: Raise errors if any of the functions are not re-written?
+class Binner(object):
+    """ Bass class for binner objects. """
+    def __init__(self):
+        pass
+    def get_cardinality(self):
+        pass
+    def bin_val(self,value):
+        pass 
+
+
+class OrdinalBinner(Binner):
     """
     Automate the binning of ordinal data into categorical data.  Given
     a list of the upper limits of each bin on init, give access to varaible's
@@ -46,7 +58,7 @@ class TextLengthBinner(OrdinalBinner):
         return super(TextLengthBinner, self).bin_val(value)
 
 
-class Dataset:
+class Dataset(object):
     """ Stuff """
     def __init__(self, frequency_table_csv=None, raw_csv=None,
                  binners=None, raw_variable_names=None):
@@ -105,6 +117,10 @@ class Dataset:
                 with open(raw_csv,'r') as f:
                     reader = csv.reader(f)
 
+                    # raw_variable_names is the list of variables as seen in
+                    # the source data.  self.variable_names are the variables
+                    # as saved in the object's data structures.
+                    
                     # Compile header into variable name list.
                     if raw_variable_names is None:
                         raw_variable_names = reader.next()

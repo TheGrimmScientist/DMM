@@ -1,17 +1,15 @@
 """ Tested and developed on python 2.7 and numpy 1.8"""
 
-# new or old style classes?
-#http://stackoverflow.com/questions/54867/old-style-and-new-style-classes-in-python
-
 import numpy as np
 import Data
+# from sets import Set,ImmutableSet
 
 def calculate_entropy_of_ndarray(probability_matrix):
     calc_cell_entropies = np.vectorize(lambda x: -x*np.log2(x) if x > 0 else 0.)
     return np.sum(calc_cell_entropies(probability_matrix))
 
 
-class Variable:
+class Variable(object):
     """ A variable is both a name and a cardinality """
     def __init__(self, name, cardinality, abbreviation=None):
         self.name = name
@@ -25,11 +23,11 @@ class Variable:
         """
         return self.name if self.abbreviation is None else self.abbreviation
 
-class Component:
+class Component(object):
     """  """
-    def __init__(self,list_of_vars):
+    def __init__(self,var_list):
 
-        self.list_of_vars = list_of_vars
+        self.var_list = var_list
         self.df = None
 
     def return_df(self):
@@ -38,23 +36,21 @@ class Component:
         probability matrix minus 1.  #TODO: add citation.
         """
         if self.df is None:
-            self.df = reduce(lambda a,b:a*b,[var.cardinality for var in self.list_of_vars],1) - 1
+            self.df = reduce(lambda a,b:a*b,[var.cardinality for var in self.var_list],1) - 1
         return self.df
 
     def __str__(self):
         """ Join each str(Variable) by commas. """
-        return ','.join([str(var) for var in self.list_of_vars])
+        return ','.join([str(var) for var in self.var_list])
 
 class ComponentWithData(Component):
     """ """
-    def __init__(self,list_of_vars,dataset):
-        #TODO: Do I need to re-specify this, or does inheritance take care of it?
-        self.list_of_vars = list_of_vars
-        self.df = None
+    def __init__(self,var_list,dataset):
+        Component.__init__(self,var_list)
 
         # dataset is expecting variable names, not variable objects
         self.data = dataset.extract_component(
-                [var.name for var in self.list_of_vars])
+                [var.name for var in self.var_list])
 
         self.entropy = None
 
@@ -65,16 +61,60 @@ class ComponentWithData(Component):
         Calculate entropy the first time this function is called.
         """
         if self.entropy is None:
-            var_names = [var.name for var in self.list_of_vars]
+            var_names = [var.name for var in self.var_list]
             probability_matrix = ds.extract_component(var_names)
             self.entropy = calculate_entropy_of_ndarray(probability_matrix)
         return self.entropy
 
-class Model:
-    def __init__(self,variable_list=None):
-        #if initing from text string, preserve order as much as possible
+class Model(object):
+    def __init__(self,component_list=None):
+        self.component_list = component_list
+
         raise Exception("Model class not yet written")
 
+        self.df = None
+        self.loopy = None
+
+    def return_df(self):
+        if self.df is None:
+            raise Exception("df calculation goes here.")
+        return self.df
+
+    def return_loopiness(self):
+        if self.loopy is None:
+            raise Exception("loopiness function goes here.")
+        return self.loopy
+
+    def __str__(self):
+        """ Join each 'Str(Component)'s with colons. """
+        return ':'.join([str(k) for k in self.component_list])
+
+class ModelWithData(Model):
+    def __init__(self, component_list, dataset):
+
+        # Extract unique list of variables from components along with a way
+        # to access the var's cardinality.
+        var_ref = {}
+        for k in component_list:
+            for var in k.var_list:
+                var_ref[var.name] = var
+        # Save those variables in the order they appear in the dataset.
+        var_list = []
+        card_list = []
+        for var_name in dataset.variable_names:
+            if var_name in var_ref:
+                var_list.append(var_ref[var_name].name)
+                card_list.append(var_ref[var_name].cardinality)
+        #the whole point of the above is to build the following two tuples:
+        self.var_names = tuple(var_list)
+        self.var_cards = tuple(card_list)
+
+        # TODO:extract component p tables (like in ComponentWithData):
+
+        # initialize q:
+        q = np.zeros(self.var_cards) #init to zeros?
+
+        # TODO: IPF goes here.
 
 if __name__ == "__main__":
 
@@ -107,8 +147,8 @@ if __name__ == "__main__":
     ## Variable:
     score = Variable(name="Score", cardinality=4, abbreviation='S')
     favorite_count = Variable(name="FavoriteCount", cardinality=2, abbreviation='F')
-    answer_count = Variable(name="AnswerCount", cardinality=2, abbreviation='AC')
-    comment_count = Variable(name="CommentCount", cardinality=3)
+    answer_count = Variable(name="AnswerCount", cardinality=2, abbreviation='A')
+    comment_count = Variable(name="CommentCount", cardinality=3, abbreviation='C')
     body_length = Variable(name="Body", cardinality=5, abbreviation='B')
 
     variable_list = [score, favorite_count, answer_count, comment_count, body_length]
@@ -120,6 +160,7 @@ if __name__ == "__main__":
     c1 = Component([score, favorite_count, body_length])
     c2 = Component([])
     c3 = Component([score,favorite_count,answer_count,comment_count,body_length])
+
 
     #### Test component print and df functions.
 
@@ -139,6 +180,12 @@ if __name__ == "__main__":
     print "component: ",cwd2,", df: ",cwd2.return_df(),". entropy: ",cwd2.return_entropy()
     print "component: ",cwd3,", df: ",cwd3.return_df(),". entropy: ",cwd3.return_entropy()
 
+    print "\nModels:"
+
+
+    print "\nModelWithDatas:"
+
+    print "\n\n ======== End ============\n"
 
 
     # E0: entropy of a single component
@@ -146,7 +193,6 @@ if __name__ == "__main__":
     # E1: entropy of a model with one component.  ==E0?
 
 
-    print "\n\n ======== End ============\n"
 
 #  Todo:
 #    - it may be cleaner to make the binner objects a part of Variable.
