@@ -94,7 +94,7 @@ class ModelWithData(Model):
         """
         Given the model's structure and data, build the model's q table.
         """
-        Model.__init__(component_list)
+        Model.__init__(self,component_list)
         # Extract unique list of variables from components along with a way
         # to access the var's cardinality.
         var_ref = {}
@@ -113,6 +113,12 @@ class ModelWithData(Model):
         self.var_cards = tuple(card_list)
 
         # TODO:extract component p tables (like in ComponentWithData):
+        projection_list = []
+        for k in component_list:
+            var_names = [var.name for var in k.var_list]
+            projection_list.append(ds.extract_component(var_names))
+
+        # print projection_list
 
         # initialize q:
         q = np.zeros(self.var_cards) #init to zeros?
@@ -198,6 +204,18 @@ if __name__ == "__main__":
 
     ## ModelWithData:
     print "\nModelWithDatas:"
+    print "mwd1"
+    mwd1 = ModelWithData([c3],ds)  #model of one component
+
+    print mwd1
+
+    print "mwd2"
+    mwd2 = ModelWithData([c4,c5],ds) #model of c4 and c5
+    print mwd2
+
+
+    # print "Model: ",m1,", df: "
+    # print "Model: ",m2,", df: "
 
 
     print "\n\n ======== End ============\n"
