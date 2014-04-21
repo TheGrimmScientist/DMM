@@ -67,10 +67,8 @@ class ComponentWithData(Component):
         return self.entropy
 
 class Model(object):
-    def __init__(self,component_list=None):
+    def __init__(self,component_list):
         self.component_list = component_list
-
-        raise Exception("Model class not yet written")
 
         self.df = None
         self.loopy = None
@@ -90,8 +88,13 @@ class Model(object):
         return ':'.join([str(k) for k in self.component_list])
 
 class ModelWithData(Model):
+    """
+    """
     def __init__(self, component_list, dataset):
-
+        """
+        Given the model's structure and data, build the model's q table.
+        """
+        Model.__init__(component_list)
         # Extract unique list of variables from components along with a way
         # to access the var's cardinality.
         var_ref = {}
@@ -160,13 +163,15 @@ if __name__ == "__main__":
     c1 = Component([score, favorite_count, body_length])
     c2 = Component([])
     c3 = Component([score,favorite_count,answer_count,comment_count,body_length])
-
+    c4 = Component([score,favorite_count,body_length])
+    c5 = Component([answer_count,comment_count])
 
     #### Test component print and df functions.
-
     print "component: ", c1, ". degrees of freedom: ", c1.return_df()
     print "component: ", c2, ". degrees of freedom: ", c2.return_df()
     print "component: ", c3, ". degrees of freedom: ", c3.return_df()
+    print "component: ", c4, ". degrees of freedom: ", c4.return_df()
+    print "component: ", c5, ". degrees of freedom: ", c5.return_df()
 
 
     ## ComponentWithData:
@@ -180,10 +185,20 @@ if __name__ == "__main__":
     print "component: ",cwd2,", df: ",cwd2.return_df(),". entropy: ",cwd2.return_entropy()
     print "component: ",cwd3,", df: ",cwd3.return_df(),". entropy: ",cwd3.return_entropy()
 
+
+    ## Model:
     print "\nModels:"
 
+    m1 = Model([c3])  #model of one component
+    m2 = Model([c4,c5]) #model of c4 and c5
 
+    print "Model: ",m1,", df: "
+    print "Model: ",m2,", df: "
+
+
+    ## ModelWithData:
     print "\nModelWithDatas:"
+
 
     print "\n\n ======== End ============\n"
 
@@ -191,7 +206,6 @@ if __name__ == "__main__":
     # E0: entropy of a single component
 
     # E1: entropy of a model with one component.  ==E0?
-
 
 
 #  Todo:
