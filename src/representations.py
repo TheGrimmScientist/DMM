@@ -61,9 +61,11 @@ class ComponentWithData(Component):
         Calculate entropy the first time this function is called.
         """
         if self.entropy is None:
-            var_names = [var.name for var in self.var_list]
-            probability_matrix = ds.extract_component(var_names)
-            self.entropy = calculate_entropy_of_ndarray(probability_matrix)
+            #var_names = [var.name for var in self.var_list]
+            #probability_matrix = ds.extract_component(var_names) # you shouldn't use 'ds' here
+            #self.entropy = calculate_entropy_of_ndarray(probability_matrix)
+            # i think you want this line instead of the 3 above
+            self.entropy = calculate_entropy_of_ndarray(self.data)
         return self.entropy
 
 class Model(object):
@@ -116,7 +118,7 @@ class ModelWithData(Model):
         projection_list = []
         for k in component_list:
             var_names = [var.name for var in k.var_list]
-            projection_list.append(ds.extract_component(var_names))
+            projection_list.append(dataset.extract_component(var_names))
 
         # print projection_list
 
