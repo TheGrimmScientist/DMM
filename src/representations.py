@@ -123,8 +123,13 @@ class ModelWithData(Model):
         # print projection_list
 
         # initialize q:
-        q = np.zeros(self.var_cards) #init to zeros?
-
+        q = np.zeros(self.var_cards)
+        q[:] = 1./q.size # initialize with equal probs
+        # while error > threshold
+        for p in projection_list:
+            # get q's projection, q_proj
+            # update elements of q as below
+            # new_q = old_q * (p/q_proj)
         # TODO: IPF goes here.
 
 if __name__ == "__main__":
@@ -138,86 +143,57 @@ if __name__ == "__main__":
     #TODO: Let the user specify a variable name to read from
     #and also a different variable name to refernce in Varaible.
     ds = Data.Dataset(raw_csv="../../SampleDatasets/StackExchange/CrossValidated_AllPosts_140119.csv",
-                 binners=[["Score",Data.OrdinalBinner([-1,0,5]), int ],
+                 binners=[["Score",Data.OrdinalBinner([0]), int ],
                           ["FavoriteCount",Data.OrdinalBinner([0]), int ],
-                          ["AnswerCount",Data.OrdinalBinner([0]), int ],
-                          ["CommentCount",Data.OrdinalBinner([0,3]), int ],
-                          ["Body",Data.TextLengthBinner([0,50,100,300]), str ]])
+                          ["AnswerCount",Data.OrdinalBinner([0]), int ]])
                           # need to include what type to expect in order to properly clean
                           
 
     print "N of dataset:", ds.N, "\n"
 
-
-    #### Test Occam3 print function
-    occam3_filename = "test_file.oin"
-    print "saving ",occam3_filename,"..."
-    ds.save_as_occam3_format(occam3_filename)
-
-
     ## Variable:
-    score = Variable(name="Score", cardinality=4, abbreviation='S')
+    score = Variable(name="Score", cardinality=2, abbreviation='S')
     favorite_count = Variable(name="FavoriteCount", cardinality=2, abbreviation='F')
     answer_count = Variable(name="AnswerCount", cardinality=2, abbreviation='A')
-    comment_count = Variable(name="CommentCount", cardinality=3, abbreviation='C')
-    body_length = Variable(name="Body", cardinality=5, abbreviation='B')
 
-    variable_list = [score, favorite_count, answer_count, comment_count, body_length]
+    variable_list = [score, favorite_count, answer_count]
     print "\nVariable List: ", ','.join(map(str,variable_list))
 
 
     ## Component:
     print "\nComponents:"
-    c1 = Component([score, favorite_count, body_length])
-    c2 = Component([])
-    c3 = Component([score,favorite_count,answer_count,comment_count,body_length])
-    c4 = Component([score,favorite_count,body_length])
-    c5 = Component([answer_count,comment_count])
+    c1 = Component([score,favorite_count])
+    c2 = Component([score,answer_count])
 
     #### Test component print and df functions.
     print "component: ", c1, ". degrees of freedom: ", c1.return_df()
     print "component: ", c2, ". degrees of freedom: ", c2.return_df()
-    print "component: ", c3, ". degrees of freedom: ", c3.return_df()
-    print "component: ", c4, ". degrees of freedom: ", c4.return_df()
-    print "component: ", c5, ". degrees of freedom: ", c5.return_df()
 
 
     ## ComponentWithData:
     print "\nComponentWithDatas:"
 
-    cwd1 = ComponentWithData([score, favorite_count, body_length],ds)
-    cwd2 = ComponentWithData([],ds)
-    cwd3 = ComponentWithData([score,favorite_count,answer_count,comment_count,body_length],ds)
+    cwd1 = ComponentWithData([score,favorite_count],ds)
+    cwd2 = ComponentWithData([score,answer_count],ds)
+    cwd3 = ComponentWithData([score,favorite_count,answer_count],ds)
 
     print "component: ",cwd1,", df: ",cwd1.return_df(),". entropy: ",cwd1.return_entropy()
-    print "component: ",cwd2,", df: ",cwd2.return_df(),". entropy: ",cwd2.return_entropy()
-    print "component: ",cwd3,", df: ",cwd3.return_df(),". entropy: ",cwd3.return_entropy()
-
 
     ## Model:
     print "\nModels:"
 
-    m1 = Model([c3])  #model of one component
-    m2 = Model([c4,c5]) #model of c4 and c5
+    m1 = Model([c1,c2])  
 
     print "Model: ",m1,", df: "
-    print "Model: ",m2,", df: "
-
 
     ## ModelWithData:
     print "\nModelWithDatas:"
     print "mwd1"
-    mwd1 = ModelWithData([c3],ds)  #model of one component
+    mwd1 = ModelWithData([c1,c2],ds)  #model of one component
 
     print mwd1
 
-    print "mwd2"
-    mwd2 = ModelWithData([c4,c5],ds) #model of c4 and c5
-    print mwd2
-
-
     # print "Model: ",m1,", df: "
-    # print "Model: ",m2,", df: "
 
 
     print "\n\n ======== End ============\n"
