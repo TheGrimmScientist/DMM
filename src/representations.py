@@ -132,6 +132,7 @@ class ModelWithData(Model):
             # new_q = old_q * (p/q_proj)
         # TODO: IPF goes here.
 
+
 if __name__ == "__main__":
 
     print "\n ======== Begin ============\n\n"
