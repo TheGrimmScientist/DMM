@@ -2,6 +2,9 @@
 
 import numpy as np
 import Data
+from itertools import combinations
+import operator
+
 # from sets import Set,ImmutableSet
 
 def calculate_entropy_of_ndarray(probability_matrix):
@@ -23,6 +26,8 @@ class Variable(object):
         """
         return self.name if self.abbreviation is None else self.abbreviation
 
+#TODO: define len() function
+#TODO: define "intersection of two Components to return a 3rd" function
 class Component(object):
     """  """
     def __init__(self,var_list):
@@ -75,7 +80,25 @@ class Model(object):
 
     def return_df(self):
         if self.df is None:
-            raise Exception("df calculation goes here.")
+            ## rather than writing set theory stuff (return a new component as 
+            ## intersection of two other components), I'm just converting over
+            ## the components into sets first.  To be changed later.
+
+            #pull out list of components, where each component is a set of variables.
+            k_list = [set(k.var_list) for k in self.component_list]
+
+            self.df = 0
+            sign = 1
+            for level in range(len(k_list)):   #for each possible number of overlapping components
+                level_df = 0
+                for overlaping_ks in combinations(k_list,level+1):  #for each possible combination of overlapping components:
+                    intersected_k = set.intersection(*overlaping_ks)  #find if any variables are overlapping to create an "intersected_component"
+                    level_df += reduce(operator.mul,[k.cardinality for k in intersected_k],1) - 1  #and add that intersected_k's df to this level's df.
+
+                self.df += sign * level_df
+
+                sign *= -1  #flip the sign for next level.
+
         return self.df
 
     def return_loopiness(self):
@@ -112,13 +135,11 @@ class ModelWithData(Model):
         self.var_names = tuple(var_list)
         self.var_cards = tuple(card_list)
 
-        # TODO:extract component p tables (like in ComponentWithData):
+        # extract component p table projections:
         projection_list = []
         for k in component_list:
             var_names = [var.name for var in k.var_list]
             projection_list.append(ds.extract_component(var_names))
-
-        # print projection_list
 
         # initialize q:
         q = np.zeros(self.var_cards) #init to zeros?
@@ -198,20 +219,18 @@ if __name__ == "__main__":
     m1 = Model([c3])  #model of one component
     m2 = Model([c4,c5]) #model of c4 and c5
 
-    print "Model: ",m1,", df: "
-    print "Model: ",m2,", df: "
+    print "Model: ",m1,", df: ",m1.return_df()
+    print "Model: ",m2,", df: ",m2.return_df()
 
 
     ## ModelWithData:
     print "\nModelWithDatas:"
-    print "mwd1"
+
     mwd1 = ModelWithData([c3],ds)  #model of one component
-
-    print mwd1
-
-    print "mwd2"
     mwd2 = ModelWithData([c4,c5],ds) #model of c4 and c5
-    print mwd2
+
+    print "Mwd: ",mwd1,", df: ",mwd1.return_df()
+    print "Mwd: ",mwd2,", df: ",mwd2.return_df()
 
 
     # print "Model: ",m1,", df: "
