@@ -197,6 +197,7 @@ if __name__ == "__main__":
     print "\nComponents:"
     c1 = Component([score,favorite_count])
     c2 = Component([score,answer_count])
+    c3 = Component([favorite_count,answer_count])
 
     #### Test component print and df functions.
     print "component: ", c1, ". degrees of freedom: ", c1.return_df()
