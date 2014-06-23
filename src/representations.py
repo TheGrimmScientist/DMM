@@ -5,7 +5,7 @@ import Data
 # from sets import Set,ImmutableSet
 
 MAX_IPF_ITER = 100
-IPF_CONV_THRESH = 0.001
+IPF_CONV_THRESH = 0.00001
 
 
 def calculate_entropy_of_ndarray(probability_matrix):
@@ -124,24 +124,46 @@ class ModelWithData(Model):
             var_names = [var.name for var in k.var_list]
             projection_list.append(dataset.extract_component(var_names))
 
-        # print projection_list
-
+        print "proj list"
+        print projection_list
+        print "Frequency table of dataset :"
+        print dataset.frequency_matrix
+        print "Make sure there are no zero values or IPF won't work"
+        print "\nStarting IPF..."
+        #it = np.nditer(projection_list, flags=['multi_index'])
+        #while not it.finished:
+        #    print "%f <%s>" % (it[0], it.multi_index),
+        #    it.iternext()
         # initialize q:
-        q = np.zeros(var_cards)
+        q = np.zeros(self.var_cards)
         q[:] = 1./q.size # initialize with equal probs
         assert len(component_list) == len(projection_list)
-        froe2_norm = np.sum(q**2)
+        #froe2_norm = np.sum(q**2)
+        q_prev=q
         cont = True
         itr = 1
         while (cont and itr < MAX_IPF_ITER):
             for i,k in enumerate(component_list):
                 var_names = [var.name for var in k.var_list]
                 q_proj = project_q(dataset.variable_names,var_names,q)
+                #print q_proj
                 q = q * (projection_list[i]/q_proj)
-            new_froe2_norm = np.sum(q**2)
-            cont = abs(new_froe2_norm - froe2_norm) > IPF_CONV_THRESH
-            froe2_norm = new_froe2_norm
+            #new_froe2_norm = np.sum(q**2)
+            #cont = abs(new_froe2_norm - froe2_norm) > IPF_CONV_THRESH
+            dif = np.max(np.abs(q-q_prev))
+            cont = dif > IPF_CONV_THRESH
+            q_prev=q
+            #froe2_norm = new_froe2_norm
+            #print itr
             itr += 1
+        print "Finished after {0} iterations.\nMaximum difference from previos q was {1}".format(itr-1,dif)
+        #print q
+        print "\n### Q-model ###"
+        it = np.nditer(q, flags=['multi_index'])
+        while not it.finished:
+            print "%f <%s>" % (it[0], it.multi_index),
+            it.iternext()
+
 
 
 def project_q(all_variable_names,variable_list,q):
@@ -176,61 +198,101 @@ if __name__ == "__main__":
     #TODO: Let the user specify a variable name to read from
     #and also a different variable name to refernce in Varaible.
     ds = Data.Dataset(raw_csv="../../SampleDatasets/StackExchange/CrossValidated_AllPosts_140119.csv",
-                 binners=[["Score",Data.OrdinalBinner([0]), int ],
-                          ["FavoriteCount",Data.OrdinalBinner([0]), int ],
-                          ["AnswerCount",Data.OrdinalBinner([0]), int ]])
                           # need to include what type to expect in order to properly clean
+                  binners=[["Score",Data.OrdinalBinner([-1,0,5]), int ],
+                          ["FavoriteCount",Data.OrdinalBinner([0]), int ],
+                          ["AnswerCount",Data.OrdinalBinner([0]), int ],
+                          ["CommentCount",Data.OrdinalBinner([0,3]), int ],
+                          ["Body",Data.TextLengthBinner([0,50,100,300]), str ]])
                           
 
-    print "N of dataset:", ds.N, "\n"
+    #### Test Occam3 print function
+    occam3_filename = "test_file.oin"
+    print "saving ",occam3_filename,"..."
+    ds.save_as_occam3_format(occam3_filename)
+
 
     ## Variable:
-    score = Variable(name="Score", cardinality=2, abbreviation='S')
+    score = Variable(name="Score", cardinality=4, abbreviation='S')
     favorite_count = Variable(name="FavoriteCount", cardinality=2, abbreviation='F')
     answer_count = Variable(name="AnswerCount", cardinality=2, abbreviation='A')
+    comment_count = Variable(name="CommentCount", cardinality=2, abbreviation='C')
+    comment_count = Variable(name="CommentCount", cardinality=3, abbreviation='C')
+    body_length = Variable(name="Body", cardinality=5, abbreviation='B')
 
-    variable_list = [score, favorite_count, answer_count]
+    variable_list = [score, favorite_count, answer_count, comment_count, body_length]
+    variable_list_ipf = [favorite_count, answer_count, comment_count]
     print "\nVariable List: ", ','.join(map(str,variable_list))
 
 
     ## Component:
     print "\nComponents:"
-    c1 = Component([score,favorite_count])
-    c2 = Component([score,answer_count])
-    c3 = Component([favorite_count,answer_count])
+    c1 = Component([score, favorite_count, body_length])
+    c2 = Component([])
+    c3 = Component([score,favorite_count,answer_count,comment_count,body_length])
+    c4 = Component([score,favorite_count,body_length])
+    c3_ipf = Component([favorite_count,answer_count])
+    c4_ipf = Component([answer_count,comment_count])
+    c5_ipf = Component([favorite_count,comment_count])
 
     #### Test component print and df functions.
-    print "component: ", c1, ". degrees of freedom: ", c1.return_df()
-    print "component: ", c2, ". degrees of freedom: ", c2.return_df()
+    #print "component: ", c1, ". degrees of freedom: ", c1.return_df()
+    #print "component: ", c2, ". degrees of freedom: ", c2.return_df()
+    print "component: ", c3, ". degrees of freedom: ", c3.return_df()
+    print "component: ", c4, ". degrees of freedom: ", c4.return_df()
+    print "component: ", c5, ". degrees of freedom: ", c5.return_df()
 
 
     ## ComponentWithData:
     print "\nComponentWithDatas:"
 
-    cwd1 = ComponentWithData([score,favorite_count],ds)
-    cwd2 = ComponentWithData([score,answer_count],ds)
-    cwd3 = ComponentWithData([score,favorite_count,answer_count],ds)
+    #cwd1 = ComponentWithData([score, favorite_count, body_length],ds)
+    #cwd2 = ComponentWithData([],ds)
+    #cwd3 = ComponentWithData([score,favorite_count,answer_count,comment_count,body_length],ds)
 
-    print "component: ",cwd1,", df: ",cwd1.return_df(),". entropy: ",cwd1.return_entropy()
+    #print "component: ",cwd1,", df: ",cwd1.return_df(),". entropy: ",cwd1.return_entropy()
+    #print "component: ",cwd2,", df: ",cwd2.return_df(),". entropy: ",cwd2.return_entropy()
+    #print "component: ",cwd3,", df: ",cwd3.return_df(),". entropy: ",cwd3.return_entropy()
+
 
     ## Model:
-    print "\nModels:"
+    #print "\nModels:"
 
-    m1 = Model([c1,c2])  
+    #m1 = Model([c3])  #model of one component
+    #m2 = Model([c4,c5]) #model of c4 and c5
+    m2 = Model([c3,c4,c5]) #model of c4 and c5
+    
 
-    print "Model: ",m1,", df: "
+    #print "Model: ",m1,", df: "
+    print "Model: ",m2,", df: "
+
 
     ## ModelWithData:
     print "\nModelWithDatas:"
-    print "mwd1"
-    mwd1 = ModelWithData([c1,c2],ds)  #model of one component
+    #print "mwd1"
+    #mwd1 = ModelWithData([c3],ds)  #model of one component
 
-    print mwd1
+    #print mwd1
+
+    print "mwd2"
+    #mwd2 = ModelWithData([c4,c5],ds) #model of c4 and c5
+    mwd2 = ModelWithData([c3,c4,c5],ds) #model of c4 and c5
+    print mwd2
+
 
     # print "Model: ",m1,", df: "
+    # print "Model: ",m2,", df: "
 
 
     print "\n\n ======== End ============\n"
+
+    ds_ipf = Data.Dataset(raw_csv="../../SampleDatasets/StackExchange/CrossValidated_AllPosts_140119.csv",
+                 binners=[["FavoriteCount",Data.OrdinalBinner([1]), int ],
+                          ["AnswerCount",Data.OrdinalBinner([5]), int ],
+                          ["CommentCount",Data.OrdinalBinner([1]), int ]])
+
+    print "N of dataset:", ds.N, "\n"
+
 
 
     # E0: entropy of a single component
