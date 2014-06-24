@@ -7,6 +7,10 @@ import operator
 
 # from sets import Set,ImmutableSet
 
+MAX_IPF_ITER = 100
+IPF_CONV_THRESH = 0.00001
+
+
 def calculate_entropy_of_ndarray(probability_matrix):
     calc_cell_entropies = np.vectorize(lambda x: -x*np.log2(x) if x > 0 else 0.)
     return np.sum(calc_cell_entropies(probability_matrix))
@@ -66,9 +70,7 @@ class ComponentWithData(Component):
         Calculate entropy the first time this function is called.
         """
         if self.entropy is None:
-            var_names = [var.name for var in self.var_list]
-            probability_matrix = ds.extract_component(var_names)
-            self.entropy = calculate_entropy_of_ndarray(probability_matrix)
+            self.entropy = calculate_entropy_of_ndarray(self.data)
         return self.entropy
 
 class Model(object):
@@ -139,14 +141,66 @@ class ModelWithData(Model):
         projection_list = []
         for k in component_list:
             var_names = [var.name for var in k.var_list]
-            projection_list.append(ds.extract_component(var_names))
+            projection_list.append(dataset.extract_component(var_names))
 
+        #print "proj list"
+        #it = np.nditer(projection_list, flags=['multi_index'])
+        #while not it.finished:
+        #    print "%f <%s>" % (it[0], it.multi_index),
+        #    it.iternext()
+        print "Frequency table of dataset :"
+        print dataset.frequency_matrix
+        print "Make sure there are no zero values or IPF won't work"
+        print "\nStarting IPF..."
         # initialize q:
-        q = np.zeros(self.var_cards) #init to zeros?
+        q = np.zeros(self.var_cards)
+        q[:] = 1./q.size # initialize with equal probs
+        assert len(component_list) == len(projection_list)
+        q_prev=q
+        cont = True
+        itr = 1
+        while (cont and itr < MAX_IPF_ITER):
+            for i,k in enumerate(component_list):
+                var_names = [var.name for var in k.var_list]
+                q_proj = project_q(dataset.variable_names,var_names,q)
+                #print q_proj
+                q = q * (projection_list[i]/q_proj)
+            dif = np.max(np.abs(q-q_prev))
+            cont = dif > IPF_CONV_THRESH
+            q_prev=q
+            itr += 1
+        print "Finished after {0} iterations.\nMaximum difference from previos q was {1}".format(itr-1,dif)
+        print "\n### Q-model ###"
+        it = np.nditer(q, flags=['multi_index'])
+        while not it.finished:
+            print "%f <%s>" % (it[0], it.multi_index),
+            it.iternext()
 
-        # TODO: IPF goes here.
+
+
+def project_q(all_variable_names,variable_list,q):
+    if all(isinstance(variable,int) for variable in variable_list):
+        pointer_list = variable_list
+    elif all(isinstance(variable,str) for variable in variable_list):
+        # TODO convert to int
+        pointer_list = [all_variable_names.index(var)
+                        for var in variable_list]
+    else:
+        raise Exception("invalid variable_list parmeter in \
+                         extract_component.")
+
+    unwanted_variables = [v for v in range(len(all_variable_names)) 
+                          if not v in pointer_list]
+
+    # Keep dims so math works out more easily later and to track
+    # which variables are aggregated.
+    return np.sum(a=q,
+                  axis=tuple(unwanted_variables),
+                  keepdims=True)
+
 
 if __name__ == "__main__":
+
 
     print "\n ======== Begin ============\n\n"
 
@@ -224,18 +278,69 @@ if __name__ == "__main__":
 
 
     ## ModelWithData:
-    print "\nModelWithDatas:"
+    #print "\nModelWithDatas:"
+    #print "mwd1"
+    #mwd1 = ModelWithData([c3],ds)  #model of one component
 
-    mwd1 = ModelWithData([c3],ds)  #model of one component
-    mwd2 = ModelWithData([c4,c5],ds) #model of c4 and c5
+    #print mwd1
 
-    print "Mwd: ",mwd1,", df: ",mwd1.return_df()
-    print "Mwd: ",mwd2,", df: ",mwd2.return_df()
+    #print "mwd2"
+    #mwd2 = ModelWithData([c4,c5],ds) #model of c4 and c5
+    #print mwd2
 
 
     # print "Model: ",m1,", df: "
     # print "Model: ",m2,", df: "
 
+
+    print "\n\n ======== End ============\n"
+
+    print "\n ======== Begin IPF Example ============\n\n"
+
+    ## Dataset:
+
+    #TODO: make binning object a part of Variable
+    #TODO: Let the user specify a variable name to read from
+    #and also a different variable name to refernce in Varaible.
+    ds = Data.Dataset(raw_csv="../../SampleDatasets/StackExchange/CrossValidated_AllPosts_140119.csv",
+                 binners=[["FavoriteCount",Data.OrdinalBinner([1]), int ],
+                          ["AnswerCount",Data.OrdinalBinner([5]), int ],
+                          ["CommentCount",Data.OrdinalBinner([1]), int ]])
+
+    print "N of dataset:", ds.N, "\n"
+
+    #### Test Occam3 print function
+    occam3_filename = "test_file.oin"
+    print "saving ",occam3_filename,"..."
+    ds.save_as_occam3_format(occam3_filename)
+
+
+    ## Variable:
+    favorite_count = Variable(name="FavoriteCount", cardinality=2, abbreviation='F')
+    answer_count = Variable(name="AnswerCount", cardinality=2, abbreviation='A')
+    comment_count = Variable(name="CommentCount", cardinality=2, abbreviation='C')
+
+    variable_list_ipf = [favorite_count, answer_count, comment_count]
+    print "\nVariable List: ", ','.join(map(str,variable_list))
+
+    ## Component:
+    print "\nComponents:"
+    c3 = Component([favorite_count,answer_count])
+    c4 = Component([answer_count,comment_count])
+    c5 = Component([favorite_count,comment_count])
+
+    #### Test component print and df functions.
+    print "component: ", c3, ". degrees of freedom: ", c3.return_df()
+    print "component: ", c4, ". degrees of freedom: ", c4.return_df()
+    print "component: ", c5, ". degrees of freedom: ", c5.return_df()
+
+
+    ## ModelWithData:
+    # with loops
+    print "\nModelWithDatas:"
+    print "mwd1"
+    mwd1 = ModelWithData([c3,c4,c5],ds) #model of c4 and c5
+    print mwd1
 
     print "\n\n ======== End ============\n"
 
