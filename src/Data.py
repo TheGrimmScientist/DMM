@@ -159,7 +159,6 @@ class Dataset(object):
 
             except Exception, e:
                 raise e
-
         self.N = self.frequency_matrix.sum()
         self.probability_matrix = np.array(self.frequency_matrix,
                                            dtype=np.float64,) /self.N
